@@ -1,26 +1,21 @@
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 class Util{
-    static String basePath="C:\\Users\\bghpa\\Desktop\\New folder\\dblp-explorer";
-    static String filePath=basePath+"\\src\\main\\java\\dblp_papers_v11.txt";
-    static String resPath=basePath;
+     static String basePath="C:\\Users\\bghpa\\Desktop\\New folder\\dblp-explorer";
+     static String filePath=basePath+"\\src\\main\\java\\dblp_papers_v11.txt";
+     static String resPath=basePath;
     public static Boolean isContain(String keyword,String article){
         return article.contains(keyword);
     }
@@ -34,26 +29,19 @@ class Util{
         if(tempRef==null){return Stream.of();}
     return tempRef.toList().stream();
     }
-
+    public static Boolean isContainList(String s,List<Object> l){
+        for(int i=0;i<l.size();i++){
+            if (isContain((String) l.get(i),s)){return true;}
+        }
+        return false;
+    }
 }
 
 public class Main {
-
-    public static JSONObject findArticle(String id,Stream<String> articles){
-
-        List<JSONObject> res = articles.map(s->{ return new JSONObject(s); })
-                .filter(j->{
-                        if (j.get("id")==id){return true;}else{return false;}
-                        }).collect(Collectors.toList());
-        return res.get(0);
-    }
     public static void main(String[] args) throws IOException{
         int n=5;
         String keyword="parham";
 
-
-
-        ArrayList<Stream<Object> > ids = new ArrayList<Stream<Object> >(n);
 
         Supplier<Stream<String>> articlesS
                 = () -> {
@@ -64,23 +52,19 @@ public class Main {
                 return Stream.of("");
             }
         }; ;
-        Stream<String> articles = Files.lines(Path.of(Util.filePath));
-        Stream<Object> tireStream=articlesS.get().filter(articleStr->Util.isContain(keyword,articleStr))
-                .map(s->{ return new JSONObject(s); }).map(ja->ja.get("id"));
+
+        Stream<String> tireStream=articlesS.get().filter(articleStr->Util.isContain(keyword,articleStr))
+                .map(s->{ return new JSONObject(s); }).map(ja->(String)ja.get("id"));
         System.out.println("tire 1");
 
+        List<Object> workList=tireStream.collect(Collectors.toList());
 
-                //.flatMap(art-> Util.getReferencesStream(art));
-
-                /**/
-
-        Stream<Object>workStream=tireStream.collect(Collectors.toList()).stream();
-        IntStream.range(2,n+1).forEach(i-> {
+        for (int i=2;i<n+1;i++) {
             System.out.print("tire");
             System.out.println(i);
 
-                    String resPath = Util.resPath + "\\tire" + String.valueOf(i) + ".txt";
-                    File fileObj = new File(resPath);
+            String resPath = Util.resPath + "\\tire" + String.valueOf(i) + ".txt";
+            File fileObj = new File(resPath);
             try {
                 fileObj.createNewFile();
             } catch (IOException e) {
@@ -93,42 +77,35 @@ public class Main {
                 e.printStackTrace();
             }
 
+            List<Object> finalWorkList = workList;
+            List<JSONObject> objs = articlesS.get().filter(s -> Util.isContainList(s, finalWorkList)).map(s -> new JSONObject(s)).collect(Collectors.toList());
+            Supplier<Stream<JSONObject>> objsS
+                    = () -> {
+                return objs.stream();
+            };
             FileWriter finalMyWriter = myWriter;
+            objsS.get().forEach(j -> {
+                try {
+                    finalMyWriter.write(j.toString());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            workList = objsS.get().flatMap(j -> {
+                JSONArray tempRef=null;
+                try{
+                tempRef = (JSONArray) j.get("references");}
+                catch (JSONException e){}
+                if (tempRef != null) {
 
-            List<Object> next=workStream
-                            .flatMap(parentId -> Util.getReferencesStream(findArticle((String) parentId, articlesS.get()))).collect(Collectors.toList());
-            System.out.println(next);
-            next.stream().forEach(artId -> {
-                        JSONObject artJ = findArticle((String) artId, articlesS.get());
-                        try {
-                            finalMyWriter.write(artJ.toString());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                    return tempRef.toList().stream();
+                }
+                return Stream.of();
+            }).collect(Collectors.toList());
 
 
-                    });
 
-                });
-
-                    /*.forEach(id-> {
-                        JSONObject art = findArticle((String) id,articles);
-                        try {
-                            myWriter.write(art.toString());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        Stream<Object> tempRef= Util.getReferencesStream(art);
-                        if(tempRef!=null){
-                        tempRef.forEach(refId->{
-                                tempIdNext.add((String) refId);
-                        });
-
-                        }
-                        }
-                        );
-            tempId= tempIdNext.stream();*/
-
+        }
 
     }
 }
